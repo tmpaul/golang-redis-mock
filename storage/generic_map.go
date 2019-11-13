@@ -1,12 +1,26 @@
-// The storage package takes care of storing the actual values in memory
-// Based on source: https://medium.com/@deckarep/the-new-kid-in-town-gos-sync-map-de24a6bf7c2c
-
+// Package storage takes care of storing the actual values in memory
 package storage
 
 import (
-	"fmt"
 	"sync"
 )
+
+// Here we try to implement a single map that can store an integer or a string.
+// The goal is to understand how we can use an interface to store values of different underlying
+// types within the same structure.
+
+// Pros >
+// 1. Single map to store
+// 2. Single interface makes it easy
+
+// Cons >
+// 1. Types are wrapped. Any usage would require unwrapping with type switch.
+// 2. Cannot implement integer specific operations easily.
+
+// For alternate implementations, see ConcurrentIntegerMap and ConcurrentStringMap
+
+// The following concurrent map implementation is based on the following source:
+// https://medium.com/@deckarep/the-new-kid-in-town-gos-sync-map-de24a6bf7c2c
 
 // GCMIntegerType extends int type
 type GCMIntegerType struct {
@@ -27,14 +41,26 @@ func (GCMIntegerType) amIStringOrInteger() bool {
 	return true
 }
 
+// GetValue returns underlying integer value
 func (g *GCMIntegerType) GetValue() int {
 	return g.value
+}
+
+// NewGCMInteger creates a new GCMInteger value
+func NewGCMInteger(i int) *GCMIntegerType {
+	return &GCMIntegerType{i}
+}
+
+// NewGCMString creates a new GCMInteger value
+func NewGCMString(s string) *GCMStringType {
+	return &GCMStringType{s}
 }
 
 func (GCMStringType) amIStringOrInteger() bool {
 	return true
 }
 
+// GetValue returns underlying string value
 func (g *GCMStringType) GetValue() string {
 	return g.value
 }
@@ -72,7 +98,6 @@ func (rm *GenericConcurrentMap) Delete(key string) bool {
 	// an item that is not written or vice. We use a return value explicitly by invoking
 	// a read. Since the read is performed after a lock, we are okay
 	delete(rm.internal, key)
-	fmt.Println("Deleting")
 	return true
 }
 
@@ -80,6 +105,5 @@ func (rm *GenericConcurrentMap) Delete(key string) bool {
 func (rm *GenericConcurrentMap) Store(key string, value IntegerOrString) {
 	rm.Lock()
 	defer rm.Unlock()
-	fmt.Println("Storing")
 	rm.internal[key] = value
 }

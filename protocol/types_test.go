@@ -9,21 +9,21 @@ import (
 func TestRESPString(t *testing.T) {
 	r, err := NewRESPString("abcd")
 	assert.Equal(t, err, nil, "NewRESPString method must return a valid RESPString without any errors")
-	assert.Equal(t, r.toString(), "abcd", "The string value must match toString() result")
+	assert.Equal(t, r.ToString(), "abcd", "The string value must match ToString() result")
 }
 
 func TestRESPInteger(t *testing.T) {
 	r, err := NewRESPInteger(123)
 	assert.Equal(t, err, nil, "NewRESPInteger method must return a valid RESPInteger without any errors")
-	assert.Equal(t, r.toString(), "123", "toString method of RESPInteger must return integer converted to string")
+	assert.Equal(t, r.ToString(), "123", "ToString method of RESPInteger must return integer converted to string")
 }
 
 func TestRESPErrorMessage(t *testing.T) {
 	em := NewRESPErrorMessage("E01", "Haalp")
 	assert.Equal(t, em.ecode, "E01", "RESPErrorMessage error code must match")
 	assert.Equal(t, em.message, "Haalp", "RESPErrorMessage message must match")
-	assert.Contains(t, em.toString(), em.ecode, "toString must include error code")
-	assert.Contains(t, em.toString(), em.message, "toString must include message")
+	assert.Contains(t, em.ToString(), em.ecode, "ToString must include error code")
+	assert.Contains(t, em.ToString(), em.message, "ToString must include message")
 }
 
 func makeLargeBytes(n int) *[]byte {
@@ -42,11 +42,11 @@ func TestRESPBulkString(t *testing.T) {
 	_, err = NewRESPBulkString(largeStr)
 	assert.NotEqual(t, err, nil)
 	bs, _ := NewRESPBulkString("foo")
-	assert.Equal(t, bs.toString(), "foo", "RESPBulkString must return the underlying string value for non null strings")
+	assert.Equal(t, bs.ToString(), "foo", "RESPBulkString must return the underlying string value for non null strings")
 
 	bs = NewNullRESPBulkString()
 	assert.Equal(t, bs.IsNull(), true, "Passing true as second argument in constructor must return nil bulk string")
-	assert.Equal(t, bs.toString(), "(nil)", "NullBulkString must return (nil) as representation")
+	assert.Equal(t, bs.ToString(), "(nil)", "NullBulkString must return (nil) as representation")
 }
 
 func TestRESPArray(t *testing.T) {

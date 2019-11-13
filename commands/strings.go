@@ -1,4 +1,10 @@
-package commands
+package main
+
+import (
+	"fmt"
+	"golang-redis-mock/protocol"
+	"golang-redis-mock/storage"
+)
 
 const (
 	GetCommand       = "GET"
@@ -7,13 +13,137 @@ const (
 	StringLenCommand = "STRLEN"
 )
 
-// StringCommand represents a series of commands that are allowed on strings and
-// related primitive types. See https://redis.io/commands#string
-type Command struct {
-	// The command key
-	commandKey string
-	// Arguments are also represented as strings.
-	args []string
+var gm = storage.NewGenericConcurrentMap()
+
+var redisError = protocol.NewRedisError
+var emptyRedisErr = protocol.RESPErrorMessage{}
+var nullResponse = *protocol.NewNullRESPBulkString()
+var redisOk, _ = protocol.NewRESPString("OK")
+
+// execute a get command on concurrent map and return the result
+func executeGetCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+	// 	// Get argument takes only a single key name.
+	numberOfItems := ra.GetNumberOfItems()
+	if numberOfItems == 1 {
+		return nil, redisError(protocol.DefaultErrorKeyword, "wrong number of arguments for (get) command")
+	} else if numberOfItems > 2 {
+		// First item is the command itself
+		// Ignore with warning message
+		fmt.Printf("WARN: GET command acccepts only one argument. But received %d\n. Other arguments will be ignored", numberOfItems-1)
+	}
+	key := ra.GetItemAtIndex(1)
+	switch k := key.(type) {
+	case *protocol.RESPString:
+	case *protocol.RESPBulkString:
+		value, ok := gm.Load(k.ToString())
+		if ok != true {
+			// If we cannot find it, we return Nil bulk string
+			return protocol.NewNullRESPBulkString(), emptyRedisErr
+		}
+		switch v := value.(type) {
+		case *storage.GCMStringType:
+			bs, err := protocol.NewRESPBulkString(v.GetValue())
+			if err != nil {
+				return nil, redisError(protocol.DefaultErrorKeyword, err.Error())
+			}
+			return bs, emptyRedisErr
+		case *storage.GCMIntegerType:
+			bi, err := protocol.NewRESPInteger(v.GetValue())
+			if err != nil {
+				return nil, redisError(protocol.DefaultErrorKeyword, err.Error())
+			}
+			return bi, emptyRedisErr
+		default:
+			return nil, redisError(protocol.DefaultErrorKeyword, "Stored value is not a string or integer")
+		}
+	default:
+		return nil, redisError(protocol.DefaultErrorKeyword, fmt.Sprintf("%s expects a string key value", GetCommand))
+	}
+	return nil, emptyRedisErr
+}
+
+// execute a set command on concurrent map
+func executeSetCommand(ra *protocol.RESPArray, returnPreviousKey bool) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+	// 	// Get argument takes only a single key name.
+	numberOfItems := ra.GetNumberOfItems()
+	if numberOfItems == 2 {
+		return nullResponse, redisError(protocol.DefaultErrorKeyword, "wrong number of arguments for (set) command")
+	} else if numberOfItems > 3 {
+		// First item is the command itself
+		// Second is key
+		// Last is value
+		// Ignore with warning message
+		fmt.Printf("WARN: SET command acccepts only two arguments. But received %d\n. Other arguments will be ignored", numberOfItems-1)
+	}
+	key := ra.GetItemAtIndex(1)
+	value := ra.GetItemAtIndex(2)
+
+	var isKeyStringType = false
+	var isValueStringType = false
+	switch key.(type) {
+	case *protocol.RESPString:
+		isKeyStringType = true
+	case *protocol.RESPBulkString:
+		isKeyStringType = true
+	default:
+		return nullResponse, redisError(protocol.DefaultErrorKeyword, fmt.Sprintf("%s expects a string key value", GetCommand))
+	}
+	if isKeyStringType == true {
+		switch v := value.(type) {
+		case *protocol.RESPString:
+			isValueStringType = true
+		case *protocol.RESPBulkString:
+			isValueStringType = true
+		case *protocol.RESPInteger:
+			gm.Store(key.ToString(), storage.NewGCMInteger(v.GetIntegerValue()))
+			if returnPreviousKey == true {
+				// Fetch previous key value
+				bs, e := protocol.NewRESPBulkString(v.ToString())
+				if e != nil {
+					return nullResponse, redisError(protocol.DefaultErrorKeyword, e.Error())
+				}
+				return bs, emptyRedisErr
+			}
+			return redisOk, emptyRedisErr
+		default:
+			return nullResponse, redisError(protocol.DefaultErrorKeyword, "Value must be string or integer")
+		}
+	}
+	if isValueStringType == true {
+		gm.Store(key.ToString(), storage.NewGCMString(value.ToString()))
+		_, err := protocol.NewRESPBulkString(value.ToString())
+		if err != nil {
+			return nullResponse, redisError(protocol.DefaultErrorKeyword, err.Error())
+		}
+		return redisOk, emptyRedisErr
+	}
+	return nullResponse, emptyRedisErr
+}
+
+func execGetSetCommand(ra *protocol.RESPArray) {
+	// Get key > If key does not exist return
+}
+
+// ExecuteStringCommand takes a RESPArray and inspects it to check there is
+// a matching executable command. If no command can be found, it returns error
+func ExecuteStringCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+	if ra.GetNumberOfItems() > 0 {
+		first := ra.GetItemAtIndex(0)
+		switch first.ToString() {
+		case GetCommand:
+			return executeGetCommand(ra)
+		case SetCommand:
+			return executeSetCommand(ra)
+		}
+	}
+	return nil, redisError(protocol.DefaultErrorKeyword, "Cannot handle command")
+}
+
+func main() {
+	ras, _ := protocol.ParseRedisClientRequest([]byte("*3\r\n+SET\r\n+foo\r\n+bar\r\n"))
+	a, b := ExecuteStringCommand(&ras[0])
+	fmt.Printf("%#v\n", a)
+	fmt.Printf("%#v\n", b)
 }
 
 // Special Unknown command

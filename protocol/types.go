@@ -10,7 +10,7 @@ import (
 // according to Redis Serialization Protocol or RESP.
 type IRESPDataType interface {
 	isRESPDataType() bool
-	toString() string
+	ToString() string
 }
 
 ///////////////////
@@ -28,7 +28,7 @@ func (RESPString) isRESPDataType() bool {
 }
 
 // Return string value
-func (s RESPString) toString() string {
+func (s RESPString) ToString() string {
 	return s.value
 }
 
@@ -47,19 +47,22 @@ type RESPErrorMessage struct {
 	message string
 }
 
+// DefaultErrorKeyword is used by REDIS to denote common errors
+const DefaultErrorKeyword = "ERR"
+
 // Tag each type with interface methods and implemented GetValue
 func (RESPErrorMessage) isRESPDataType() bool {
 	return true
 }
 
-// Return string value
-func (em RESPErrorMessage) toString() string {
+// ToString returns string value
+func (em RESPErrorMessage) ToString() string {
 	return em.ecode + "{" + em.message + "}"
 }
 
-// NewRESPErrorMessage creates a new instance of RESPErrorMessage
-func NewRESPErrorMessage(ecode string, message string) *RESPErrorMessage {
-	return &RESPErrorMessage{ecode, message}
+// NewRedisError creates a new instance of RESPErrorMessage
+func NewRedisError(ecode string, message string) RESPErrorMessage {
+	return RESPErrorMessage{ecode, message}
 }
 
 ///////////////////
@@ -72,12 +75,17 @@ type RESPInteger struct {
 }
 
 // Return string equivalent of integer
-func (i RESPInteger) toString() string {
+func (i RESPInteger) ToString() string {
 	return strconv.Itoa(i.value)
 }
 
 func (RESPInteger) isRESPDataType() bool {
 	return true
+}
+
+// GetIntegerValue returns the underlying int value
+func (i RESPInteger) GetIntegerValue() int {
+	return i.value
 }
 
 // NewRESPInteger creates a new instance of RESPInteger
@@ -113,7 +121,7 @@ func (RESPBulkString) isRESPDataType() bool {
 }
 
 // Return string value of bulk string, nil if appropriate
-func (bs RESPBulkString) toString() string {
+func (bs RESPBulkString) ToString() string {
 	if bs.isNullValue {
 		return "(nil)"
 	}
@@ -155,10 +163,10 @@ func (RESPArray) isRESPDataType() bool {
 }
 
 // Return the array representation
-func (ra RESPArray) toString() string {
+func (ra RESPArray) ToString() string {
 	itemRepr := make([]string, len(ra.items))
 	for i, item := range ra.items {
-		itemRepr[i] = item.toString()
+		itemRepr[i] = item.ToString()
 	}
 	return "[" + strings.Join(itemRepr, ",") + "]"
 }
