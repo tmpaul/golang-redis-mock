@@ -1,0 +1,24 @@
+// package storage
+
+// type BackgroundWorker struct {
+// 	// Pointer to the generic map
+// 	m *GenericConcurrentMap
+// 	// Name of the file to write to
+// 	fileName string
+// 	// Interval of writes in seconds
+// 	writeInterval int
+// }
+
+// //
+// func (bg *BackgroundWorker) LoadFromFile() (int, error) {
+// 	// Truncate file so that new writes happen
+// }
+
+// // AppendToFile writes given set to commands to the file.
+// func (bg *BackgroundWorker) AppendToFile(commands []string) (int, error) {
+
+// }
+
+// func StartWorker(m *GenericConcurrentMap) {
+// 	// Run using time.Ticker
+// }
