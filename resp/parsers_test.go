@@ -1,4 +1,4 @@
-package protocol
+package resp
 
 import (
 	"fmt"
@@ -98,8 +98,8 @@ func TestReadUntilCRLF(t *testing.T) {
 	assert.Equal(t, read, 5, "Bytes after CRLF are ignored")
 }
 
-func assertStringValueAndBytesRead(t *testing.T, str *RESPString, read int, readExpected int) {
-	assert.Equal(t, str.value, "ab", fmt.Sprintf("Simple string value should be: %s, got: %s.", "ab", str.value))
+func assertStringValueAndBytesRead(t *testing.T, str String, read int, readExpected int) {
+	assert.Equal(t, str.ToString(), "ab", fmt.Sprintf("Simple string value should be: %s, got: %s.", "ab", str.ToString()))
 	assert.Equal(t, read, readExpected, fmt.Sprintf("Should return correct number of bytes read. Got: %d, Expected: %d", read, readExpected))
 }
 
@@ -124,7 +124,7 @@ func TestParseSimpleString(t *testing.T) {
 	assertStringValueAndBytesRead(t, str, read, 4)
 }
 
-func assertErrorCodeMessageAndBytesRead(t *testing.T, e *RESPErrorMessage, eExpected *RESPErrorMessage, read int, readExpected int) {
+func assertErrorCodeMessageAndBytesRead(t *testing.T, e RedisError, eExpected RedisError, read int, readExpected int) {
 	assert.Equal(t, e.ecode, eExpected.ecode, fmt.Sprintf("Expected error message ecode to equal %s, but got %s", eExpected.ecode, e.ecode))
 	assert.Equal(t, read, readExpected, fmt.Sprintf("Should return correct number of bytes read. Got: %d, Expected: %d", read, readExpected))
 }
@@ -142,20 +142,20 @@ func TestParseErrorMessage(t *testing.T) {
 	}, "parseErrorMessage panics if starting byte does not match expected symbol -")
 
 	e, read := parseErrorMessage([]byte{'-', 'E', 'R', 'R', '\r', '\n'})
-	assertErrorCodeMessageAndBytesRead(t, e, &RESPErrorMessage{ecode: "ERR"}, read, 6)
+	assertErrorCodeMessageAndBytesRead(t, e, NewRedisError("ERR", ""), read, 6)
 	// Try with more inputs after \n
 	e, read = parseErrorMessage([]byte{'-', 'E', 'R', 'R', '\r', '\n', '+', 'a', 'b', '\r', '\n'})
-	assertErrorCodeMessageAndBytesRead(t, e, &RESPErrorMessage{ecode: "ERR"}, read, 6)
+	assertErrorCodeMessageAndBytesRead(t, e, NewRedisError("ERR", ""), read, 6)
 	// With no \r
 	e, read = parseErrorMessage([]byte{'-', 'E', 'R', 'R', '\n'})
-	assertErrorCodeMessageAndBytesRead(t, e, &RESPErrorMessage{ecode: "ERR"}, read, 5)
+	assertErrorCodeMessageAndBytesRead(t, e, NewRedisError("ERR", ""), read, 5)
 	// With message
 	e, read = parseErrorMessage([]byte{'-', 'E', 'R', 'R', ' ', 'm', 'o', 'o', '\r', '\n'})
-	assertErrorCodeMessageAndBytesRead(t, e, &RESPErrorMessage{ecode: "ERR", message: "moo"}, read, 10)
+	assertErrorCodeMessageAndBytesRead(t, e, NewRedisError("ERR", "moo"), read, 10)
 
 	// Custom error message
 	e, read = parseErrorMessage([]byte("-WRONGTYPE foobar\r\n"))
-	assertErrorCodeMessageAndBytesRead(t, e, &RESPErrorMessage{ecode: "WRONGTYPE", message: "foobar"}, read, 19)
+	assertErrorCodeMessageAndBytesRead(t, e, NewRedisError("WRONGTYPE", "foobar"), read, 19)
 }
 
 func TestParseIntegers(t *testing.T) {
@@ -172,17 +172,17 @@ func TestParseIntegers(t *testing.T) {
 
 	// With no CRLF
 	i, read := parseIntegers([]byte(":42"))
-	assert.Equal(t, i.value, 42)
+	assert.Equal(t, i.GetIntegerValue(), 42)
 	assert.Equal(t, read, 3)
 
 	// With CRLF
 	i, read = parseIntegers([]byte(":42\r\n"))
-	assert.Equal(t, i.value, 42)
+	assert.Equal(t, i.GetIntegerValue(), 42)
 	assert.Equal(t, read, 5)
 
 	// Negative integer
 	i, read = parseIntegers([]byte(":-42\r\n"))
-	assert.Equal(t, i.value, -42)
+	assert.Equal(t, i.GetIntegerValue(), -42)
 	assert.Equal(t, read, 6)
 
 	// Invalid integer
@@ -215,7 +215,7 @@ func TestParseBulkString(t *testing.T) {
 
 	// Correct parse
 	bs, read := parseBulkString([]byte("$2\r\nab\r\n"))
-	assert.Equal(t, bs.value, "ab", "Bulk string value must match expected string")
+	assert.Equal(t, bs.ToString(), "ab", "Bulk string value must match expected string")
 	assert.Equal(t, read, 8, "Bytes read must be correct for bulkstring")
 	assert.Equal(t, bs.IsNull(), false, "Proper bulk string must not return true as nil bulk string")
 
@@ -225,13 +225,13 @@ func TestParseBulkString(t *testing.T) {
 
 	// Entries after CRLF are ignored
 	bs, read = parseBulkString([]byte("$2\r\nab\r\n:42\r\n"))
-	assert.Equal(t, bs.value, "ab")
+	assert.Equal(t, bs.ToString(), "ab")
 	assert.Equal(t, read, 8)
 	assert.Equal(t, bs.IsNull(), false)
 
 	// Empty bulk string (not nil bulk string)
 	bs, read = parseBulkString([]byte("$0\r\n"))
-	assert.Equal(t, bs.value, "", "Empty bulk string must have value `\"`")
+	assert.Equal(t, bs.ToString(), "", "Empty bulk string must have value `\"`")
 	assert.Equal(t, read, 4, "Bytes read must be correct for empty bulkstring")
 	assert.Equal(t, bs.IsNull(), false, "Empty bulk string must not return true for IsNull method")
 
@@ -241,51 +241,51 @@ func TestParseBulkString(t *testing.T) {
 	}, "parseBulkString panics if the length of bulk string does not match expected length")
 }
 
-func TestParseRESPArray(t *testing.T) {
+func TestParseArray(t *testing.T) {
 	// Empty array
 	assert.Panics(t, func() {
-		parseRESPArray([]byte{})
-	}, "Empty stream causes parseRESPArray to panic")
+		parseArray([]byte{})
+	}, "Empty stream causes parseArray to panic")
 
 	// Wrong data type sent in
 	assert.Panics(t, func() {
-		parseRESPArray([]byte{})
-	}, "parseRESPArray panics if starting byte does not match expected symbol *")
+		parseArray([]byte{})
+	}, "parseArray panics if starting byte does not match expected symbol *")
 
 	// If number of elements is invalid, it panics
 	assert.Panics(t, func() {
-		parseRESPArray([]byte("*-1\r\n"))
-	}, "parseRESPArray panics if number of items is less than 0")
+		parseArray([]byte("*-1\r\n"))
+	}, "parseArray panics if number of items is less than 0")
 
 	// Empty RESP array
-	ra, read := parseRESPArray([]byte("*0\r\n"))
-	assert.Equal(t, ra.GetNumberOfItems(), 0, "Empty RESPArray must have zero length")
+	ra, read := parseArray([]byte("*0\r\n"))
+	assert.Equal(t, ra.GetNumberOfItems(), 0, "Empty Array must have zero length")
 	assert.Equal(t, read, 4)
 
 	// Size 1 RESP array
-	ra, read = parseRESPArray([]byte("*1\r\n:42\r\n"))
+	ra, read = parseArray([]byte("*1\r\n:42\r\n"))
 	assert.Equal(t, ra.GetNumberOfItems(), 1)
 	assert.Equal(t, read, 9)
 	switch ra.GetItemAtIndex(0).(type) {
-	case *RESPInteger:
+	case Integer:
 		break
 	default:
-		assert.Fail(t, "Expected first item of RESPArray to be RESPInteger")
+		assert.Fail(t, "Expected first item of Array to be Integer")
 	}
 
 	// Mixed array
-	ra, read = parseRESPArray([]byte("*2\r\n:42\r\n+ab\r\n"))
+	ra, read = parseArray([]byte("*2\r\n:42\r\n+ab\r\n"))
 	assert.Equal(t, ra.GetNumberOfItems(), 2)
 	assert.Equal(t, read, 14)
 	switch ra.GetItemAtIndex(1).(type) {
-	case *RESPString:
+	case String:
 		break
 	default:
-		assert.Fail(t, "Expected second item of RESPArray to be RESPString")
+		assert.Fail(t, "Expected second item of Array to be String")
 	}
 
 	// Panics if one of the elements is invalid
 	assert.Panics(t, func() {
-		parseRESPArray([]byte("*2\r\n:ii\r\n+ab\r\n"))
+		parseArray([]byte("*2\r\n:ii\r\n+ab\r\n"))
 	})
 }

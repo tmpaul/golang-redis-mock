@@ -16,12 +16,12 @@ const (
 var gm = storage.NewGenericConcurrentMap()
 
 var redisError = protocol.NewRedisError
-var emptyRedisErr = protocol.RESPErrorMessage{}
-var nullResponse = *protocol.NewNullRESPBulkString()
-var redisOk, _ = protocol.NewRESPString("OK")
+var emptyRedisErr = protocol.EmptyRedisError
+var nullResponse = *protocol.NewNullBulkString()
+var redisOk, _ = protocol.NewString("OK")
 
 // execute a get command on concurrent map and return the result
-func executeGetCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+func executeGetCommand(ra *protocol.Array) (protocol.IRESPDataType, protocol.RedisError) {
 	// 	// Get argument takes only a single key name.
 	numberOfItems := ra.GetNumberOfItems()
 	if numberOfItems == 1 {
@@ -33,22 +33,22 @@ func executeGetCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol
 	}
 	key := ra.GetItemAtIndex(1)
 	switch k := key.(type) {
-	case *protocol.RESPString:
-	case *protocol.RESPBulkString:
+	case *protocol.String:
+	case *protocol.BulkString:
 		value, ok := gm.Load(k.ToString())
 		if ok != true {
 			// If we cannot find it, we return Nil bulk string
-			return protocol.NewNullRESPBulkString(), emptyRedisErr
+			return protocol.NewNullBulkString(), emptyRedisErr
 		}
 		switch v := value.(type) {
 		case *storage.GCMStringType:
-			bs, err := protocol.NewRESPBulkString(v.GetValue())
+			bs, err := protocol.NewBulkString(v.GetValue())
 			if err != nil {
 				return nil, redisError(protocol.DefaultErrorKeyword, err.Error())
 			}
 			return bs, emptyRedisErr
 		case *storage.GCMIntegerType:
-			bi, err := protocol.NewRESPInteger(v.GetValue())
+			bi, err := protocol.NewInteger(v.GetValue())
 			if err != nil {
 				return nil, redisError(protocol.DefaultErrorKeyword, err.Error())
 			}
@@ -63,7 +63,7 @@ func executeGetCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol
 }
 
 // execute a set command on concurrent map
-func executeSetCommand(ra *protocol.RESPArray, returnPreviousKey bool) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+func executeSetCommand(ra *protocol.Array, returnPreviousKey bool) (protocol.IRESPDataType, protocol.RedisError) {
 	// 	// Get argument takes only a single key name.
 	numberOfItems := ra.GetNumberOfItems()
 	if numberOfItems == 2 {
@@ -81,24 +81,24 @@ func executeSetCommand(ra *protocol.RESPArray, returnPreviousKey bool) (protocol
 	var isKeyStringType = false
 	var isValueStringType = false
 	switch key.(type) {
-	case *protocol.RESPString:
+	case *protocol.String:
 		isKeyStringType = true
-	case *protocol.RESPBulkString:
+	case *protocol.BulkString:
 		isKeyStringType = true
 	default:
 		return nullResponse, redisError(protocol.DefaultErrorKeyword, fmt.Sprintf("%s expects a string key value", GetCommand))
 	}
 	if isKeyStringType == true {
 		switch v := value.(type) {
-		case *protocol.RESPString:
+		case *protocol.String:
 			isValueStringType = true
-		case *protocol.RESPBulkString:
+		case *protocol.BulkString:
 			isValueStringType = true
-		case *protocol.RESPInteger:
+		case *protocol.Integer:
 			gm.Store(key.ToString(), storage.NewGCMInteger(v.GetIntegerValue()))
 			if returnPreviousKey == true {
 				// Fetch previous key value
-				bs, e := protocol.NewRESPBulkString(v.ToString())
+				bs, e := protocol.NewBulkString(v.ToString())
 				if e != nil {
 					return nullResponse, redisError(protocol.DefaultErrorKeyword, e.Error())
 				}
@@ -111,7 +111,7 @@ func executeSetCommand(ra *protocol.RESPArray, returnPreviousKey bool) (protocol
 	}
 	if isValueStringType == true {
 		gm.Store(key.ToString(), storage.NewGCMString(value.ToString()))
-		_, err := protocol.NewRESPBulkString(value.ToString())
+		_, err := protocol.NewBulkString(value.ToString())
 		if err != nil {
 			return nullResponse, redisError(protocol.DefaultErrorKeyword, err.Error())
 		}
@@ -120,13 +120,13 @@ func executeSetCommand(ra *protocol.RESPArray, returnPreviousKey bool) (protocol
 	return nullResponse, emptyRedisErr
 }
 
-func execGetSetCommand(ra *protocol.RESPArray) {
+func execGetSetCommand(ra *protocol.Array) {
 	// Get key > If key does not exist return
 }
 
-// ExecuteStringCommand takes a RESPArray and inspects it to check there is
+// ExecuteStringCommand takes a Array and inspects it to check there is
 // a matching executable command. If no command can be found, it returns error
-func ExecuteStringCommand(ra *protocol.RESPArray) (protocol.IRESPDataType, protocol.RESPErrorMessage) {
+func ExecuteStringCommand(ra *protocol.Array) (protocol.IRESPDataType, protocol.RedisError) {
 	if ra.GetNumberOfItems() > 0 {
 		first := ra.GetItemAtIndex(0)
 		switch first.ToString() {
@@ -190,19 +190,19 @@ func main() {
 // func (sc StringsCache) executeCommand(c Command) protocol.RequestChunk {
 // 	// Get the key out and run
 // 	if val, ok := sc.intStore[c.args[0]]; ok {
-// 		return protocol.NewRESPInteger(val)
+// 		return protocol.NewInteger(val)
 // 	}
 // 	if val, ok := sc.stringStore[c.args[0]]; ok {
-// 		return protocol.NewRESPInteger(val)
+// 		return protocol.NewInteger(val)
 // 	}
 // 	// Return nil
 // 	return nil
 // }
 
-// func (s Command) parseCommand(r *protocol.RESPArray) Command {
+// func (s Command) parseCommand(r *protocol.Array) Command {
 // 	firstChunk := r.GetItemAtIndex(0)
 // 	switch t := firstChunk.(type) {
-// 	case protocol.RESPBulkString:
+// 	case protocol.BulkString:
 // 		// Try to meet StringCommand values, if if fails return nil
 // 		value := t.GetValue()
 // 		// See if we have a matching command
