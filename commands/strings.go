@@ -1,4 +1,4 @@
-package main
+package commands
 
 // Uses a subset of commands from https://redis.io/commands#string + DEL command
 
@@ -30,29 +30,29 @@ func executeGetCommand(ra *resp.Array) (resp.IDataType, resp.RedisError) {
 		fmt.Printf("WARN: GET command acccepts only one argument. But received %d\n. Other arguments will be ignored", numberOfItems-1)
 	}
 	key := ra.GetItemAtIndex(1)
-	switch k := key.(type) {
-	case resp.String:
+	switch key.(type) {
 	case resp.BulkString:
-		value, ok := gm.Load(k.ToString())
-		if ok != true {
-			// If we cannot find it, we return Nil bulk string
-			return resp.EmptyBulkString, resp.EmptyRedisError
-		}
-		switch v := value.(type) {
-		case storage.GCMStringType:
-			bs, err := resp.NewBulkString(v.GetValue())
-			if err != nil {
-				return nil, resp.NewDefaultRedisError(err.Error())
-			}
-			return bs, resp.EmptyRedisError
-		case storage.GCMIntegerType:
-			bi := resp.NewInteger(v.GetValue())
-			return bi, resp.EmptyRedisError
-		default:
-			return nil, resp.NewDefaultRedisError("Stored value is not a string or integer")
-		}
+	case resp.String:
 	default:
 		return nil, resp.NewDefaultRedisError(fmt.Sprintf("%s expects a string key value", getCommand))
+	}
+	value, ok := gm.Load(key.ToString())
+	if ok != true {
+		// If we cannot find it, we return Nil bulk string
+		return resp.EmptyBulkString, resp.EmptyRedisError
+	}
+	switch v := value.(type) {
+	case storage.GCMStringType:
+		bs, err := resp.NewBulkString(v.GetValue())
+		if err != nil {
+			return nil, resp.NewDefaultRedisError(err.Error())
+		}
+		return bs, resp.EmptyRedisError
+	case storage.GCMIntegerType:
+		bi := resp.NewInteger(v.GetValue())
+		return bi, resp.EmptyRedisError
+	default:
+		return nil, resp.NewDefaultRedisError("Stored value is not a string or integer")
 	}
 	return nil, resp.EmptyRedisError
 }
@@ -163,24 +163,4 @@ func ExecuteStringCommand(ra resp.Array) (resp.IDataType, resp.RedisError) {
 		}
 	}
 	return nil, resp.NewDefaultRedisError("Cannot handle command")
-}
-
-func main() {
-	commands := []string{
-		"*3\r\n+SET\r\n+foo\r\n+bar\r\n*2\r\n+DEL\r\n+foo\r\n",
-	}
-	for _, command := range commands {
-		commandByteArray := []byte(command)
-		ras, _, f := resp.ParseRedisClientRequest(commandByteArray)
-		if f == resp.EmptyRedisError {
-			for _, ra := range ras {
-				a, b := ExecuteStringCommand(ra)
-				fmt.Printf("%#v\n", a)
-				fmt.Printf("%#v\n", b)
-			}
-		} else {
-			fmt.Println(f)
-		}
-	}
-
 }

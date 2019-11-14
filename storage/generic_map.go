@@ -42,18 +42,18 @@ func (GCMIntegerType) amIStringOrInteger() bool {
 }
 
 // GetValue returns underlying integer value
-func (g *GCMIntegerType) GetValue() int {
+func (g GCMIntegerType) GetValue() int {
 	return g.value
 }
 
 // NewGCMInteger creates a new GCMInteger value
-func NewGCMInteger(i int) *GCMIntegerType {
-	return &GCMIntegerType{i}
+func NewGCMInteger(i int) GCMIntegerType {
+	return GCMIntegerType{i}
 }
 
 // NewGCMString creates a new GCMInteger value
-func NewGCMString(s string) *GCMStringType {
-	return &GCMStringType{s}
+func NewGCMString(s string) GCMStringType {
+	return GCMStringType{s}
 }
 
 func (GCMStringType) amIStringOrInteger() bool {
@@ -61,7 +61,7 @@ func (GCMStringType) amIStringOrInteger() bool {
 }
 
 // GetValue returns underlying string value
-func (g *GCMStringType) GetValue() string {
+func (g GCMStringType) GetValue() string {
 	return g.value
 }
 
