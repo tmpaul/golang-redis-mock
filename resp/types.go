@@ -86,6 +86,14 @@ func NewRedisError(ecode string, message string) RedisError {
 	return RedisError{ecode, message}
 }
 
+// NewDefaultRedisError sets ecode to DefaultErrorKeyword, which is usually "ERR"
+func NewDefaultRedisError(message string) RedisError {
+	return RedisError{
+		ecode:   DefaultErrorKeyword,
+		message: message,
+	}
+}
+
 ///////////////////
 // Integer
 ///////////////////

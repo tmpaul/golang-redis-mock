@@ -195,7 +195,7 @@ func parseArray(bytes []byte) (*Array, int) {
 			break
 		}
 		if counter >= Array.GetNumberOfItems() {
-			panic("Invalid command stream. RESP Array index exceeds capacity")
+			panic(fmt.Sprintf("Invalid command stream. RESP Array index %d exceeds specified capacity of %s", counter+1, numberOfItems.ToString()))
 		}
 		first := bytes[0]
 		var s IDataType
@@ -227,15 +227,25 @@ func parseArray(bytes []byte) (*Array, int) {
 	return Array, bytesRead
 }
 
+// Get the next array start byte starting from offset 1
+func getNextArrayStartByteIndex(bytes []byte) int {
+	for i := 1; i < len(bytes); i++ {
+		if bytes[i] == arrayStartByte {
+			return i
+		}
+	}
+	return len(bytes)
+}
+
 // ParseRedisClientRequest takes in a sequence of bytes, and parses them
 // as sequential Array entries. Each command in a pipeline will form
 // a Array. This method catches internal panics, and returns top level
 // errors as RedisError. The caller can then check if the error is EmptyRedisError
 // and return appropriately
-func ParseRedisClientRequest(bytes []byte) ([]Array, int, RedisError) {
-	commands := make([]Array, 0)
+func ParseRedisClientRequest(bytes []byte) (commands []Array, totalBytes int, finalErr RedisError) {
+	commands = make([]Array, 0)
 	totalBytesRead := 0
-	var finalErr RedisError = EmptyRedisError
+	finalErr = EmptyRedisError
 	// Top level panic recovery
 	defer func() {
 		if r := recover(); r != nil {
@@ -248,7 +258,9 @@ func ParseRedisClientRequest(bytes []byte) ([]Array, int, RedisError) {
 		}
 	}()
 	for len(bytes) > 0 {
-		command, read := parseArray(bytes)
+		// For pipelines, we read until next arrayStartByte
+		asbIndex := getNextArrayStartByteIndex(bytes)
+		command, read := parseArray(bytes[0:asbIndex])
 		if read > 0 {
 			// Add command to commands list
 			commands = append(commands, *command)
