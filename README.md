@@ -27,3 +27,7 @@ redis-cli>
 ```
 
 Allowed commands are `GET`, `SET`, `DEL`, `GETSET`.
+
+## Running tests
+
+`cd resp && go test`
