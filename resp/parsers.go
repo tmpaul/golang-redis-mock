@@ -120,7 +120,7 @@ func parseIntegers(bytes []byte) (Integer, int) {
 	// Return value and bytes read
 	conv, err := strconv.Atoi(str)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Invalid integer sequence supplied: %s", str))
 	}
 	return NewInteger(conv), i
 }
@@ -203,13 +203,10 @@ func parseArray(bytes []byte) (*Array, int) {
 		switch first {
 		case stringStartByte:
 			s, r = parseSimpleString(bytes)
-			break
 		case integerStartByte:
 			s, r = parseIntegers(bytes)
-			break
 		case bulkStringStartByte:
 			s, r = parseBulkString(bytes)
-			break
 		case errorStartByte:
 			s, r = parseErrorMessage(bytes)
 		default:
@@ -254,6 +251,10 @@ func ParseRedisClientRequest(bytes []byte) (commands []Array, totalBytes int, fi
 				finalErr = re
 			case string:
 				finalErr = NewRedisError(DefaultErrorKeyword, re)
+			default:
+				fmt.Println(r)
+				// We don't know what caused this, so we return generic error
+				finalErr = NewDefaultRedisError(fmt.Sprint(r))
 			}
 		}
 	}()

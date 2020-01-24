@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	getCommand    = "GET"
-	setCommand    = "SET"
-	getSetCommand = "GETSET"
-	deleteCommand = "DEL"
+	getCommand       = "GET"
+	setCommand       = "SET"
+	getSetCommand    = "GETSET"
+	deleteCommand    = "DEL"
+	strLengthCommand = "STRLEN"
 )
 
 var gm = storage.NewGenericConcurrentMap()
@@ -27,7 +28,7 @@ func executeGetCommand(ra *resp.Array) (resp.IDataType, resp.RedisError) {
 	} else if numberOfItems > 2 {
 		// First item is the command itself
 		// Ignore with warning message
-		fmt.Printf("WARN: GET command acccepts only one argument. But received %d\n. Other arguments will be ignored", numberOfItems-1)
+		fmt.Printf("WARN: GET command acccepts only one argument. But received %d. Other arguments will be ignored\n", numberOfItems-1)
 	}
 	key := ra.GetItemAtIndex(1)
 	switch key.(type) {
@@ -162,5 +163,5 @@ func ExecuteStringCommand(ra resp.Array) (resp.IDataType, resp.RedisError) {
 			break
 		}
 	}
-	return nil, resp.NewDefaultRedisError("Cannot handle command")
+	return nil, resp.NewDefaultRedisError("Unknown command")
 }
