@@ -10,32 +10,21 @@ import (
 
 func TestConcurrentMapSingleClientStoreAndLoad(t *testing.T) {
 	m := NewGenericConcurrentMap()
-	m.Store("foo", GCMStringType{"bar"})
-	m.Store("foo2", GCMIntegerType{2})
+	m.Store("foo", "bar")
+	m.Store("foo2", "2")
 	val, ok := m.Load("foo")
 	assert.Equal(t, ok, true)
-	switch v := val.(type) {
-	case GCMStringType:
-		assert.Equal(t, v.GetValue(), "bar")
-	default:
-		assert.Fail(t, "Return value type must be string")
-	}
+	assert.Equal(t, val, "bar")
 	val, ok = m.Load("foo2")
-	assert.Equal(t, ok, true)
-	switch v := val.(type) {
-	case GCMIntegerType:
-		assert.Equal(t, v.GetValue(), 2)
-	default:
-		assert.Fail(t, "Return value type must be int")
-	}
+	assert.Equal(t, val, "2")
 	_, ok = m.Load("foo3")
 	assert.Equal(t, ok, false)
 }
 
 func TestConcurrentSingleClientMapDelete(t *testing.T) {
 	m := NewGenericConcurrentMap()
-	m.Store("foo", GCMStringType{"bar"})
-	m.Store("foo2", GCMIntegerType{2})
+	m.Store("foo", "bar")
+	m.Store("foo2", "2")
 	ok := m.Delete("foo")
 	assert.Equal(t, ok, true)
 	ok = m.Delete("foo2")
@@ -46,18 +35,12 @@ func TestConcurrentSingleClientMapDelete(t *testing.T) {
 
 func reader(t *testing.T, g *GenericConcurrentMap, c chan string, key string) {
 	v, _ := g.Load(key)
-	switch a := v.(type) {
-	case GCMStringType:
-		// Send value to channel
-		c <- a.GetValue()
-	default:
-		assert.Fail(t, "Failed to read value with key:"+key)
-	}
+	c <- v
 }
 
-func writer(g *GenericConcurrentMap, c chan string, key string, value GCMStringType) {
+func writer(g *GenericConcurrentMap, c chan string, key string, value string) {
 	g.Store(key, value)
-	c <- value.GetValue()
+	c <- value
 }
 
 func TestConcurrentMapAccessMultipleClients(t *testing.T) {
@@ -66,7 +49,7 @@ func TestConcurrentMapAccessMultipleClients(t *testing.T) {
 	// Ideas for this test are taken from https://golang.org/src/runtime/rwmutex_test.go
 	m := NewGenericConcurrentMap()
 	// Store initial value
-	m.Store("foo", GCMStringType{"omg"})
+	m.Store("foo", "omg")
 
 	c := make(chan string, 1)
 	done := make(chan string)
@@ -76,7 +59,7 @@ func TestConcurrentMapAccessMultipleClients(t *testing.T) {
 	assert.Equal(t, <-c, "omg")
 	go reader(t, m, c, "foo")
 	assert.Equal(t, <-c, "omg")
-	go writer(m, done, "foo", GCMStringType{"lol"})
+	go writer(m, done, "foo", "lol")
 	<-done
 	go reader(t, m, c, "foo")
 	assert.Equal(t, <-c, "lol")
@@ -86,7 +69,7 @@ func TestConcurrentMapAccessMultipleClients(t *testing.T) {
 	// Try concurrent reads without waiting, but waiting only on write
 	go reader(t, m, c, "foo")
 	go reader(t, m, c, "foo")
-	go writer(m, done, "foo", GCMStringType{"lol"})
+	go writer(m, done, "foo", "lol")
 	go reader(t, m, c, "foo")
 	<-done
 	go reader(t, m, c, "foo")
@@ -107,8 +90,8 @@ func TestConcurrentMapWriteMultipleWriters(t *testing.T) {
 	var curr string
 
 	// Two concurrent writers. Any may win first because we are only waiting for one
-	go writer(m, done, "foo", GCMStringType{"lol"})
-	go writer(m, done, "foo", GCMStringType{"lol2"})
+	go writer(m, done, "foo", "lol")
+	go writer(m, done, "foo", "lol2")
 	curr = <-done
 	go reader(t, m, c, "foo")
 	assert.Equal(t, <-c, curr)
@@ -130,7 +113,7 @@ func TestConcurrentMapWriteAndDelete(t *testing.T) {
 
 	// Run write first
 	go func() {
-		m.Store("foo", GCMIntegerType{2})
+		m.Store("foo", "2")
 		wg.Done()
 	}()
 	go func() {
@@ -143,7 +126,7 @@ func TestConcurrentMapWriteAndDelete(t *testing.T) {
 	// Now run delete first
 	go func() {
 		wg.Wait()
-		m.Store("foo", GCMIntegerType{2})
+		m.Store("foo", "2")
 	}()
 	go func() {
 		ok := m.Delete("foo")

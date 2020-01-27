@@ -78,7 +78,7 @@ func (RedisError) isDataType() bool {
 
 // ToString returns string value
 func (em RedisError) ToString() string {
-	return em.ecode + "{" + em.message + "}"
+	return em.ecode + " " + em.message
 }
 
 // NewRedisError creates a new instance of RedisError
