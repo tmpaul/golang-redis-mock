@@ -1,3 +1,5 @@
+<img class="badge" tag="github.com/tmpaul/golang-redis-mock" src="https://goreportcard.com/badge/github.com/tmpaul/golang-redis-mock">
+
 # golang-redis-mock
 A minimal functional Redis server written in Golang. I build this to learn Golang while simultaneouly
 building out a functional product that begs good code practices, moderate use of concurrent goroutines
