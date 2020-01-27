@@ -3,7 +3,7 @@
 <img width="50%" height="50%" alt="Redis logo" src="https://upload.wikimedia.org/wikipedia/en/thumb/6/6b/Redis_Logo.svg/1200px-Redis_Logo.svg.png"/>
 
 # golang-redis-mock
-A minimal functional Redis server written in Golang. I build this to learn Golang while simultaneouly
+A minimal functional Redis server written in Golang. I built this to learn Golang while simultaneouly
 building out a functional product that begs good code practices, moderate use of concurrent goroutines
 and dynamic type management.
 
