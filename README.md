@@ -26,7 +26,7 @@ bar
 redis-cli> 
 ```
 
-Allowed commands are `GET`, `SET`, `DEL`, `GETSET`, `APPEND`, `SETNX`, `STRLEN`.
+Allowed commands are `GET`, `SET`, `DEL`, `GETSET`, `APPEND`, `SETNX`, `STRLEN`, `SETEX`.
 
 ## Running tests
 
