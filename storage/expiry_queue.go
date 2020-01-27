@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -48,6 +47,8 @@ func (eq *ExpiryQueue) insertKey(x string, ttl int64) {
 // Expire the keys in a timed loop with intervals of 1 second
 func (eq *ExpiryQueue) expireKeys() {
 	currSec := time.Now().Unix()
+	// Useful when listener goroutine is shutdown
+	exitFlag := false
 	for {
 		// Start time
 		start := time.Now().Unix()
@@ -68,7 +69,9 @@ func (eq *ExpiryQueue) expireKeys() {
 						select {
 						case eq.out <- k:
 						default:
-							fmt.Println(fmt.Sprintf("Warning: Could not delete key %s. Please make sure that there is a goroutine listening to out channel", k))
+							// Here we break out of goroutine, because there are no more listeners left
+							exitFlag = true
+							break
 						}
 						delete(eq.ttlMap, k)
 					} else {
@@ -86,5 +89,9 @@ func (eq *ExpiryQueue) expireKeys() {
 		// This is approximate, if deleting takes more than 1 second because
 		// the reader is blocked, we need to add difference
 		currSec += time.Now().Unix() - start
+
+		if exitFlag == true {
+			break
+		}
 	}
 }

@@ -24,12 +24,16 @@ func NewGenericConcurrentMap() *GenericConcurrentMap {
 		eq:       eq,
 	}
 	go gm.expireKey(eq.out)
+	defer close(eq.out)
 	return &gm
 }
 
 func (gcm *GenericConcurrentMap) expireKey(out chan string) {
 	for {
-		key := <-out
+		key, o := <-out
+		if o != true {
+			break
+		}
 		gcm.Delete(key)
 	}
 }
