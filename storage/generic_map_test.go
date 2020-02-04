@@ -67,16 +67,18 @@ func TestConcurrentMapAccessMultipleClients(t *testing.T) {
 	assert.Equal(t, <-c, "lol")
 
 	// Try concurrent reads without waiting, but waiting only on write
+	m.Store("foo", "lol")
 	go reader(t, m, c, "foo")
 	go reader(t, m, c, "foo")
-	go writer(m, done, "foo", "lol")
+	go writer(m, done, "foo", "lol2")
 	go reader(t, m, c, "foo")
 	<-done
 	go reader(t, m, c, "foo")
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 3; i++ {
 		val := <-c
 		assert.Equal(t, val, "lol")
 	}
+	assert.Equal(t, <-c, "lol2")
 }
 
 func TestConcurrentMapWriteMultipleWriters(t *testing.T) {
